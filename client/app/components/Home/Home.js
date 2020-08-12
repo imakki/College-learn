@@ -1,108 +1,62 @@
-import React, { Component } from 'react';
-import 'whatwg-fetch';
+import React, { useState, useEffect } from "react";
+import {
+  getKeyFromStorage,
+  setKeyToStorage,
+  clearStorage,
+} from "../../utils/storage";
+import { useRouteMatch } from "react-router-dom";
+import axios from "axios";
+import Register from "./Register";
+import Login from "./Login";
+import Account from "../UserAccount/Account";
 
-class Home extends Component {
-  constructor(props) {
-    super(props);
+const Home = () => {
+  let match = useRouteMatch("/register");
+  const [isLoading, setLoading] = useState(true);
+  const [token, setToken] = useState("");
 
-    this.state = {
-      counters: []
-    };
+  useEffect(() => {
+    const obj = getKeyFromStorage("the_main_app");
 
-    this.newCounter = this.newCounter.bind(this);
-    this.incrementCounter = this.incrementCounter.bind(this);
-    this.decrementCounter = this.decrementCounter.bind(this);
-    this.deleteCounter = this.deleteCounter.bind(this);
-
-    this._modifyCounter = this._modifyCounter.bind(this);
-  }
-
-  componentDidMount() {
-    fetch('/api/counters')
-      .then(res => res.json())
-      .then(json => {
-        this.setState({
-          counters: json
-        });
+    if (obj && obj.token) {
+      const { token } = obj;
+      //verify the token
+      axios.get("/api/account/verify?token=" + token).then((result) => {
+        if (result.data.success) {
+          setToken(token);
+          setLoading(false);
+        } else {
+          setLoading(false);
+        }
       });
-  }
-
-  newCounter() {
-    fetch('/api/counters', { method: 'POST' })
-      .then(res => res.json())
-      .then(json => {
-        let data = this.state.counters;
-        data.push(json);
-
-        this.setState({
-          counters: data
-        });
-      });
-  }
-
-  incrementCounter(index) {
-    const id = this.state.counters[index]._id;
-
-    fetch(`/api/counters/${id}/increment`, { method: 'PUT' })
-      .then(res => res.json())
-      .then(json => {
-        this._modifyCounter(index, json);
-      });
-  }
-
-  decrementCounter(index) {
-    const id = this.state.counters[index]._id;
-
-    fetch(`/api/counters/${id}/decrement`, { method: 'PUT' })
-      .then(res => res.json())
-      .then(json => {
-        this._modifyCounter(index, json);
-      });
-  }
-
-  deleteCounter(index) {
-    const id = this.state.counters[index]._id;
-
-    fetch(`/api/counters/${id}`, { method: 'DELETE' })
-      .then(_ => {
-        this._modifyCounter(index, null);
-      });
-  }
-
-  _modifyCounter(index, data) {
-    let prevData = this.state.counters;
-
-    if (data) {
-      prevData[index] = data;
     } else {
-      prevData.splice(index, 1);
+      setLoading(false);
     }
+  }, [token]);
 
-    this.setState({
-      counters: prevData
-    });
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
 
-  render() {
+  if (token) {
     return (
-      <>
-        <p>Counters:</p>
-
-        <ul>
-          { this.state.counters.map((counter, i) => (
-            <li key={i}>
-              <span>{counter.count} </span>
-              <button onClick={() => this.incrementCounter(i)}>+</button>
-              <button onClick={() => this.decrementCounter(i)}>-</button>
-              <button onClick={() => this.deleteCounter(i)}>x</button>
-            </li>
-          )) }
-        </ul>
-
-        <button onClick={this.newCounter}>New counter</button>
-      </>
+      <Account
+        loadingState={() => setLoading(false)}
+        tokenState={() => setToken()}
+      />
     );
   }
-}
+
+  if (match) {
+    return <Register loadingState={() => setLoading(false)} />;
+  } else {
+    return (
+      <Login
+        loadingState={() => setLoading(false)}
+        tokenState={() => setToken()}
+      />
+    );
+  }
+};
 
 export default Home;
